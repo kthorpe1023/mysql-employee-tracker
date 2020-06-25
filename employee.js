@@ -2,6 +2,7 @@
 const mysql = require("mysql");
 const inquirer = require("inquirer");
 
+let employeesArray = []
 
 //create connection information
 const connection = mysql.createConnection({
@@ -12,8 +13,8 @@ const connection = mysql.createConnection({
     database: "employee_tracker_db"
 });
 
-var query = "SELECT employee.id, employee.first_name, employee.last_name, department.name, role.title, employee.manager, role.salary";
-query += "FROM department INNER JOIN role INNER JOIN employee ON (department.id = role.department_id AND employee.department_id);";
+var query = "SELECT employee.id, employee.first_name, employee.last_name, department.name, role.title, employee.manager, role.salary FROM department INNER JOIN role INNER JOIN employee ON (department.id = role.department_id AND role.title = employee.title);";
+// query += "FROM role INNER JOIN employee ON (role.title = employee.title);";
 
 const viewEmployees = () => {
     connection.query(query, (err, data) =>{
@@ -22,6 +23,45 @@ const viewEmployees = () => {
         for(const items of data){
             console.log(`ID. ${items.id} || Name: ${items.first_name} ${items.last_name} || Department: ${items.name} || Title: ${items.title} || Manager: ${items.manager} || Salary: ${items.salary}`)
         }
+    })
+}
+
+var querydept = "SELECT employee.id, employee.first_name, employee.last_name, department.name, role.title, employee.manager, role.salary FROM department INNER JOIN role INNER JOIN employee ON (department.id = role.department_id AND role.title = employee.title) ORDER BY department.name;"
+
+const employeesDepartment = () => {
+    connection.query(querydept, (err, data) =>{
+        if(err) throw err;
+        
+        for(const items of data){
+            console.log(`ID. ${items.id} || Name: ${items.first_name} ${items.last_name} || Department: ${items.name} || Title: ${items.title} || Manager: ${items.manager} || Salary: ${items.salary}`)
+        }
+    })
+};
+
+var querymanager = "SELECT employee.id, employee.first_name, employee.last_name, department.name, role.title, employee.manager, role.salary FROM department INNER JOIN role INNER JOIN employee ON (department.id = role.department_id AND role.title = employee.title) ORDER BY employee.manager;"
+
+const employeeManager = () => {
+    connection.query(querymanager, (err, data) =>{
+
+        // use a filter to fill up employeeTableByName include id 
+        if(err) throw err;
+        
+        for(const items of data){
+            console.log(`ID. ${items.id} || Name: ${items.first_name} ${items.last_name} || Department: ${items.name} || Title: ${items.title} || Manager: ${items.manager} || Salary: ${items.salary}`)
+        }
+    })
+}
+
+const getEmpData = () => {
+    connection.query(query, (err, data) =>{
+
+        // use a filter to fill up employeeTableByName include id 
+        if(err) throw err;
+        
+        for(const items of data){
+            employeesArray.push(`${items.id}. ${items.first_name} ${items.last_name}`)
+        }
+        // console.log(employeesArray + " line 65")
     })
 }
 
@@ -50,7 +90,7 @@ const addEmployee = () => {
             type: "list",
             message: "What is the employee's title?",
             name: "title",
-            choices: ["marketing coordinator", "receptionist", "web developer", "managmr"]
+            choices: ["marketing coordinator", "receptionist", "web developer", "manager"]
 
         }
 
@@ -66,43 +106,119 @@ const addEmployee = () => {
             if(err) throw err;
             console.log(`Employee ${data.first_name} has been added`)
         })
+    menu();
     })
 };
 
 
 const removeEmployee = () => {
-    // let empName = []
-    // const nameTime = () => {connection.query("SELECT first_name, last_name FROM employee;", (err, res) => {
-    //     if(err) throw err;
-    //     for(items of res){
-    //         empName.push(`${items.first_name} ${items.last_name}`)
-    //     }
-    // })
-    // }
-    // nameTime()
-    // console.log(empName);
+    console.log("Deleting an employee");
+    var query =
+      `SELECT employee.id, employee.first_name, employee.last_name
+        FROM employee`
+    connection.query(query, function (err, res) {
+      if (err) throw err;
+      const deleteEmployeeChoices = res.map(({ id, first_name, last_name }) => ({
+        value: id, name: `${id} ${first_name} ${last_name}`
+      }));
     inquirer.prompt([
         {
             type: "list",
             message: "Which employee would you like to remove?",
-            name: "employeeName",
-            choices: [empName]
+            name: "id",
+            choices: deleteEmployeeChoices
         }
     ]).then((data) =>{
-        connection.query("DELETE FROM employee WHERE first_name = ? AND last_name = ?",
-        [first_name = data.first_name],[last_name = data.last_name])
+        console.log(data);
+
+        connection.query("DELETE FROM employee WHERE id = ?",
+        [data.id],
+        (err)=> {
+            if(err) throw err;
+            console.log(`Employee ${employee.id} has been removed`)
+        })
+        menu();
     })
+})
 };
 
+const updateRole = () => {
+    console.log("Update role of an employee");
+    var query =
+      `SELECT employee.id, employee.first_name, employee.last_name
+        FROM employee`
+    connection.query(query, function (err, res) {
+      if (err) throw err;
+      const updateEmployeeChoices = res.map(({ id, first_name, last_name }) => ({
+        value: id, name: `${id} ${first_name} ${last_name}`
+      }));
+    
+    // console.log(employeesArray + " line 128")
+    inquirer.prompt([
+        {
+            type: "list",
+            message: "Whose role do you need to update?",
+            name: "employeeRole",
+            choices: updateEmployeeChoices
+        },
+        {
+            type: "list",
+            message: "What would you like to update for this employee?",
+            name: "updateChoice",
+            choices: ["Name", "Manager", "Title"]
+        }
+
+    ]).then((answer) =>{
+        switch(answer.action){
+            case "Name":
+                changeName(answer);
+                break;
+            case "Last name":
+                changeManager(answer);
+                break;
+            case "Title":
+                changeTitle(answer);
+                break;
+        }
+    })
+})
+};
+        
+        const changeName = () =>{
+            inquirer.prompt([
+                {
+                    type: "input",
+                    message: "what is the employee's new first name?",
+                    name: "newFirst",
+                },
+                {
+                    type: "input",
+                    message: "What is the employee's new last name?",
+                    name: "newLast"
+                }
+            ]).then((data) => {
+                connection.query("UPDATE employee WHERE id = ?",
+
+                (err)=> {
+                    if(err) throw err;
+                    console.log(`Employee ${data.id} has been removed`)
+                })
+            })
+
+        menu();
+        };
+
 const menu = () => {
+    
     inquirer.prompt([
         {
             type: "list",
             message: "What would you like to do?",
-            choices: ["View all employees", "View all employees by department", "View all employees by manager", "Add employee", "Remomve employee", "Update employee role", "Update employee manager"],
+            choices: ["View all employees", "View all employees by department", "View all employees by manager", "Add employee", "Remove employee", "Update employee role", "Update employee manager", "Exit"],
             name: "action",
         }
     ]).then((answer) => {
+        
         switch(answer.action) {
             case "View all employees":
                 return viewEmployees();
@@ -116,7 +232,7 @@ const menu = () => {
             case "Add employee":
                 return addEmployee();
                 break;
-            case "Remomve employee":
+            case "Remove employee":
                 return removeEmployee();
                 break;
             case "Update employee role":
@@ -125,6 +241,8 @@ const menu = () => {
             case "Update employee manager":
                 return updateManager();
                 break;
+            case "Exit":
+                return connection.end()
         }
     });
 };
@@ -133,4 +251,6 @@ connection.connect((err) => {
     if(err) throw err;
     console.log(`Connected to id ${connection.threadId}`);
     menu();
-});
+    getEmpData();
+    
+})
